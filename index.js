@@ -1,6 +1,5 @@
 const Koa = require("koa")
 const { webkit } = require("playwright")
-const evaluation = require("./evaluation.js")
 const yargs = require("yargs/yargs")
 const { hideBin } = require("yargs/helpers")
 
@@ -13,9 +12,6 @@ async function main({ port, previewUrl }) {
 
     console.log("Loading /")
     await page.goto(previewUrl.href, { waitUntil: "domcontentloaded" })
-    await page.waitForSelector(`#shopify-section-index`, {
-        state: "attached"
-    })
 
     const app = new Koa()
 
@@ -23,15 +19,13 @@ async function main({ port, previewUrl }) {
         const url = new URL(ctx.url, previewUrl.href)
         const id = url.searchParams.get("section_id")
 
-        url.search = previewUrl.search + "&section_id=" + id
+        url.search = "section_id=" + id
         console.log("rendering", url.href)
 
-        const sectionHTML = await page.evaluate(evaluation, {
-            id,
-            bypass: {
-                doc: true
-            }
-        })
+        const sectionHTML = await page.evaluate(async url => {
+            const response = await fetch(url)
+            return response.text()
+        }, url)
 
         console.log("rendered ", sectionHTML)
 
@@ -54,5 +48,5 @@ const { argv } = yargs(hideBin(process.argv))
 
 main({
     port: argv.port,
-    previewUrl: argv.url
+    previewUrl: new URL(argv.url)
 })
